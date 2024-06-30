@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "ConfigNode.h"
 #include "GlobalConfigures.generated.h"
 
 struct PluginConfigs
@@ -33,10 +34,12 @@ public:
     // 初始化
     void Initialize(const PluginConfigs& initConf);
 
+    
+
 private:
     static UGlobalConfigures* Instance;
 
-    class FConfigNode RootNode;
+    FConfigNode RootNode;
 
     // 私有构造函数和析构函数
     UGlobalConfigures();

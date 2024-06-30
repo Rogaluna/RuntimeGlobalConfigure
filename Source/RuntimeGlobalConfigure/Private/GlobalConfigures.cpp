@@ -5,7 +5,6 @@
 #include "RuntimeGlobalConfigure.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
-#include "ConfigNode.h"
 #include "ConfigParser.h"
 #include "Json.h"
 #include "JsonUtilities.h"
@@ -124,15 +123,15 @@ void UGlobalConfigures::ParsingConfigurationFile(const FString& FileContent, con
 
 
 	UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("Parsed content of %s:\n"), *Filename);
-	//ConfigParser::FNodeCallback Callback;
-	//Callback.BindLambda([](const FConfigNode& Node, int32 Depth)
-	//	{
-	//		FString Indent = TEXT("");
-	//		for (int32 i = 0; i < Depth; ++i)
-	//		{
-	//			Indent += TEXT("  ");
-	//		}
-	//		UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("%sName: %s, Type: %d, Value: %s"), *Indent, *Node.Name, static_cast<int32>(Node.NodeType), *Node.Value);
-	//	});
-	//ConfigParser::TraverseConfigNode(Node, Callback);
+	ConfigParser::FNodeCallback Callback;
+	Callback.BindLambda([](const FConfigNode& Node, int32 Depth)
+		{
+			FString Indent = TEXT("");
+			for (int32 i = 0; i < Depth; ++i)
+			{
+				Indent += TEXT("  ");
+			}
+			UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("%sName: %s, Type: %d, Value: %s"), *Indent, *Node.Name, static_cast<int32>(Node.NodeType), *Node.Value);
+		});
+	ConfigParser::TraverseConfigNode(Node, Callback);
 }

@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Dom/JsonObject.h"
-#include "Templates/SharedPointer.h"
 
 enum class ENodeType : uint8
 {
@@ -39,4 +37,34 @@ struct FConfigNode
     // 带参数的构造函数
     FConfigNode(FString InName, ENodeType InNodeType, FString InValue)
         : Name(InName), NodeType(InNodeType), Value(InValue) {}
+
+    // 拷贝构造函数
+    FConfigNode(const FConfigNode& Other)
+    {
+        Name = Other.Name;
+        NodeType = Other.NodeType;
+        Value = Other.Value;
+        Children = Other.Children;
+    }
+
+    // 赋值运算符
+    FConfigNode& operator=(const FConfigNode& Other)
+    {
+        if (this != &Other)
+        {
+            Name = Other.Name;
+            NodeType = Other.NodeType;
+            Value = Other.Value;
+            Children = Other.Children;
+        }
+        return *this;
+    }
+
+    bool operator==(const FConfigNode& Other) const
+    {
+        return Name == Other.Name &&
+            NodeType == Other.NodeType &&
+            Value == Other.Value &&
+            Children == Other.Children;
+    }
 };
