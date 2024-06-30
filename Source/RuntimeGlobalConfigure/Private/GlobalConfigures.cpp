@@ -83,6 +83,50 @@ void UGlobalConfigures::Initialize(const PluginConfigs& initConf)
     }
 }
 
+
+TArray<FString> UGlobalConfigures::GetFirstLayerChildNames() const
+{
+    TArray<FString> ChildNames;
+    for (const FConfigNode& Child : RootNode.Children)
+    {
+        ChildNames.AddUnique(Child.Name);
+    }
+    return ChildNames;
+}
+
+
+bool UGlobalConfigures::FindConfigNodeByPath(const FString& Path, int32& OutNodeType, FString& OutNodeValue) const
+{
+    TArray<FString> PathParts;
+    Path.ParseIntoArray(PathParts, TEXT("/"), true);
+
+    const FConfigNode* CurrentNode = &RootNode;
+    for (const FString& Part : PathParts)
+    {
+        bool bFound = false;
+        for (const FConfigNode& Child : CurrentNode->Children)
+        {
+            if (Child.Name == Part)
+            {
+                CurrentNode = &Child;
+                bFound = true;
+                break;
+            }
+        }
+
+        if (!bFound)
+        {
+            OutNodeType = static_cast<int32>(ENodeType::NT_String);
+            OutNodeValue = TEXT("");
+            return false; // 节点未找到
+        }
+    }
+
+    OutNodeType = static_cast<int32>(CurrentNode->NodeType);
+    OutNodeValue = CurrentNode->Value;
+    return true; // 节点找到
+}
+
 UGlobalConfigures::UGlobalConfigures()
     : bInitialized(false)
 {
