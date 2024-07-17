@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "ConfigNode.h"
-#include "yaml-cpp/yaml.h"
+#include "yaml.h"
 
 /**
  * 

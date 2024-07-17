@@ -21,116 +21,15 @@ UGlobalConfigures& UGlobalConfigures::Get()
     return *Instance;
 }
 
-void UGlobalConfigures::Initialize(const PluginConfigs& initConf)
+void UGlobalConfigures::Initialize()
 {
-    if (!bInitialized)
-    {
-        // 初始化逻辑
-        IFileManager& FileManager = IFileManager::Get();
-        const FString& ContentDir = FPaths::ProjectContentDir();
-
-        // 获取Configs目录，如果Configs指向的目录不存在，则创建一个
-        const FString& ConfigDir = ContentDir / initConf.ConfigDir;
-
-#if WITH_EDITOR
-        if (!FileManager.DirectoryExists(*ConfigDir))
-        {
-            UE_LOG(LogRuntimeGlobalConfigurePlugin, Warning, L"Directory \"%s\" does not exist!", *ConfigDir);
-            if (FileManager.MakeDirectory(*ConfigDir, true))
-            {
-                UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, L"Directory \"%s\" has been created", *ConfigDir);
-            }
-            else
-            {
-                UE_LOG(LogRuntimeGlobalConfigurePlugin, Error, L"Directory \"%s\" cannot be created", *ConfigDir);
-            }
-        }
-#endif
-
-        // 获取允许的配置文件类型
-        const TArray<FString>& SupportedFileTypes = initConf.SupportedFileTypes;
-        // 找到所有符合类型的配置文件
-        TArray<FString> AllFiles;
-        for (const FString& FileType : SupportedFileTypes)
-        {
-            TArray<FString> FilesOfType;
-            FileManager.FindFilesRecursive(FilesOfType, *ConfigDir, *FileType, true, false);
-            AllFiles.Append(FilesOfType);
-        }
-        
-        // 选择指定的配置文件
-		TArray<FString> MatchingFiles;
-
-        // 从配置文件中获取配置
-		for (const FString& ConfigFilePath : AllFiles)
-		{
-            FString Filename = FPaths::GetCleanFilename(ConfigFilePath);
-            UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("FilePath: %s"), *Filename);
-            FString FileContent;
-            if (FFileHelper::LoadFileToString(FileContent, *ConfigFilePath))
-            {
-                ParsingConfigurationFile(*FileContent, Filename);
-            }
-            else
-            {
-                UE_LOG(LogRuntimeGlobalConfigurePlugin, Error, TEXT("Cannot read file: %s"), *ConfigFilePath);
-            }
-        }
-        
-
-        UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("GlobalConfigures Singleton Initialized"));
-        bInitialized = true;
-    }
-}
-
-
-TArray<FString> UGlobalConfigures::GetFirstLayerChildNames() const
-{
-    TArray<FString> ChildNames;
-    for (const FConfigNode& Child : RootNode.Children)
-    {
-        ChildNames.AddUnique(Child.Name);
-    }
-    return ChildNames;
-}
-
-
-bool UGlobalConfigures::FindConfigNodeByPath(const FString& Path, int32& OutNodeType, FString& OutNodeValue) const
-{
-    TArray<FString> PathParts;
-    Path.ParseIntoArray(PathParts, TEXT("/"), true);
-
-    const FConfigNode* CurrentNode = &RootNode;
-    for (const FString& Part : PathParts)
-    {
-        bool bFound = false;
-        for (const FConfigNode& Child : CurrentNode->Children)
-        {
-            if (Child.Name == Part)
-            {
-                CurrentNode = &Child;
-                bFound = true;
-                break;
-            }
-        }
-
-        if (!bFound)
-        {
-            OutNodeType = static_cast<int32>(ENodeType::NT_String);
-            OutNodeValue = TEXT("");
-            return false; // 节点未找到
-        }
-    }
-
-    OutNodeType = static_cast<int32>(CurrentNode->NodeType);
-    OutNodeValue = CurrentNode->Value;
-    return true; // 节点找到
+    
 }
 
 UGlobalConfigures::UGlobalConfigures()
     : bInitialized(false)
 {
-
+    Initialize();
 }
 
 UGlobalConfigures::~UGlobalConfigures()
@@ -163,7 +62,6 @@ void UGlobalConfigures::ParsingConfigurationFile(const FString& FileContent, con
 
     Node.Name = Filename;
     Node.NodeType = ENodeType::NT_Object;
-    RootNode.Children.AddUnique(Node);
 
 
 	UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("Parsed content of %s:\n"), *Filename);
