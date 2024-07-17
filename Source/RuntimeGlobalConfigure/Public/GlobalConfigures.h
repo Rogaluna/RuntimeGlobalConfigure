@@ -26,7 +26,7 @@ private:
     static UGlobalConfigures* Instance;
 
     TMap<FString, FConfigNode> ConfigMappings;
-
+    
     // 私有构造函数和析构函数
     UGlobalConfigures();
     ~UGlobalConfigures();
