@@ -7,18 +7,6 @@
 #include "ConfigNode.h"
 #include "GlobalConfigures.generated.h"
 
-struct PluginConfigs
-{
-    FString ConfigDir;
-    TArray<FString> ConfigFiles;
-    TArray<FString> SupportedFileTypes;
-
-    PluginConfigs(const FString& InConfigDir, const TArray<FString>& InConfigFiles, const TArray<FString>& InSupportedFileTypes)
-        : ConfigDir(InConfigDir), ConfigFiles(InConfigFiles), SupportedFileTypes(InSupportedFileTypes)
-    {
-    }
-};
-
 /**
  * 
  */
@@ -28,36 +16,38 @@ class RUNTIMEGLOBALCONFIGURE_API UGlobalConfigures : public UObject
 	GENERATED_BODY()
 	
 public:
-    // 获取单例实例
+    /** 获取单例实例 */
     static UGlobalConfigures& Get();
 
-    // 初始化
-    void Initialize(const PluginConfigs& initConf);
+    /** 初始化 */
+    void Initialize();
 
-    /**
-     * 根节点的第一层装载了文件配置的根，其Name属性是它的文件名
-     */
-    UFUNCTION(BlueprintCallable, Category = "全局配置实例", DisplayName = "获取加载的配置文件名")
-    TArray<FString> GetFirstLayerChildNames() const; 
-
-    /**
-     * 通过路径寻找配置文件，路径字符串起始必须为“/”
-     * 当寻找到数组和对象类型的配置时，无法返回值
-     */
-    UFUNCTION(BlueprintCallable, Category = "全局配置实例", DisplayName = "获取配置值")
-    bool FindConfigNodeByPath(const FString& Path, int32& OutNodeType, FString& OutNodeValue) const;
+public:
+    UFUNCTION(BlueprintCallable, DisplayName="加载配置文件")
+    void LoadConfigurationFile(const FString& FilePath);
 
 private:
     static UGlobalConfigures* Instance;
 
-    FConfigNode RootNode;
-
-    // 私有构造函数和析构函数
+    TMap<FString, UConfigNode*> ConfigMappings;
+    
+    /** 私有构造函数和析构函数 */
     UGlobalConfigures();
     ~UGlobalConfigures();
 
-    void ParsingConfigurationFile(const FString& FileContent, const FString& Filename);
+    /**
+     * 解析文件内容，返回解析的根节点
+     */
+    UConfigNode* ParseFileContent(const FString& FilePath);
 
-    // 成员变量
+    /** 解析JSON文件 */
+    void ParseJsonFile(const FString& FilePath, UConfigNode* RootNode);
+    void ParseJsonObject(TSharedPtr<FJsonObject> JsonObject, UConfigNode* ParentNode);
+
+
+    void PrintConfigNode(const UConfigNode* Node, int32 IndentLevel = 0);
+
+private:
+    /** 成员变量 */
     bool bInitialized;
 };

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System;
+using System.IO;
 
 public class RuntimeGlobalConfigure : ModuleRules
 {
@@ -8,11 +10,13 @@ public class RuntimeGlobalConfigure : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicIncludePaths.AddRange(
+        string SourceDir = System.IO.Path.Combine(ModuleDirectory, "..\\");
+
+        PublicIncludePaths.AddRange(
 			new string[] {
 				// ... add public include paths required here ...
-                ModuleDirectory + "\\..\\ThirdParty\\YamlCPP\\include"
-			}
+                Path.Combine(ModuleDirectory, SourceDir + "/ThirdParty/YamlCPP/include"),
+            }
 			);
 
 
@@ -50,13 +54,13 @@ public class RuntimeGlobalConfigure : ModuleRules
 			new string[]
 			{
 				// ... add any modules that your module loads dynamically here ...
-            }
+			}
 			);
 
         PublicAdditionalLibraries.AddRange(
 			new string[]
 			{
-                ModuleDirectory + "\\..\\ThirdParty\\YamlCPP\\lib\\yaml-cpp.lib"
+                Path.Combine(SourceDir + "/ThirdParty/YamlCPP/lib", "yaml-cpp.lib"),
             }
 			);
     }

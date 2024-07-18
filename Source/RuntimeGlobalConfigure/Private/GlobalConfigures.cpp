@@ -21,116 +21,18 @@ UGlobalConfigures& UGlobalConfigures::Get()
     return *Instance;
 }
 
-void UGlobalConfigures::Initialize(const PluginConfigs& initConf)
+void UGlobalConfigures::Initialize()
 {
     if (!bInitialized)
     {
-        // 初始化逻辑
-        IFileManager& FileManager = IFileManager::Get();
-        const FString& ContentDir = FPaths::ProjectContentDir();
-
-        // 获取Configs目录，如果Configs指向的目录不存在，则创建一个
-        const FString& ConfigDir = ContentDir / initConf.ConfigDir;
-
-#if WITH_EDITOR
-        if (!FileManager.DirectoryExists(*ConfigDir))
-        {
-            UE_LOG(LogRuntimeGlobalConfigurePlugin, Warning, L"Directory \"%s\" does not exist!", *ConfigDir);
-            if (FileManager.MakeDirectory(*ConfigDir, true))
-            {
-                UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, L"Directory \"%s\" has been created", *ConfigDir);
-            }
-            else
-            {
-                UE_LOG(LogRuntimeGlobalConfigurePlugin, Error, L"Directory \"%s\" cannot be created", *ConfigDir);
-            }
-        }
-#endif
-
-        // 获取允许的配置文件类型
-        const TArray<FString>& SupportedFileTypes = initConf.SupportedFileTypes;
-        // 找到所有符合类型的配置文件
-        TArray<FString> AllFiles;
-        for (const FString& FileType : SupportedFileTypes)
-        {
-            TArray<FString> FilesOfType;
-            FileManager.FindFilesRecursive(FilesOfType, *ConfigDir, *FileType, true, false);
-            AllFiles.Append(FilesOfType);
-        }
         
-        // 选择指定的配置文件
-		TArray<FString> MatchingFiles;
-
-        // 从配置文件中获取配置
-		for (const FString& ConfigFilePath : AllFiles)
-		{
-            FString Filename = FPaths::GetCleanFilename(ConfigFilePath);
-            UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("FilePath: %s"), *Filename);
-            FString FileContent;
-            if (FFileHelper::LoadFileToString(FileContent, *ConfigFilePath))
-            {
-                ParsingConfigurationFile(*FileContent, Filename);
-            }
-            else
-            {
-                UE_LOG(LogRuntimeGlobalConfigurePlugin, Error, TEXT("Cannot read file: %s"), *ConfigFilePath);
-            }
-        }
-        
-
-        UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("GlobalConfigures Singleton Initialized"));
-        bInitialized = true;
     }
-}
-
-
-TArray<FString> UGlobalConfigures::GetFirstLayerChildNames() const
-{
-    TArray<FString> ChildNames;
-    for (const FConfigNode& Child : RootNode.Children)
-    {
-        ChildNames.AddUnique(Child.Name);
-    }
-    return ChildNames;
-}
-
-
-bool UGlobalConfigures::FindConfigNodeByPath(const FString& Path, int32& OutNodeType, FString& OutNodeValue) const
-{
-    TArray<FString> PathParts;
-    Path.ParseIntoArray(PathParts, TEXT("/"), true);
-
-    const FConfigNode* CurrentNode = &RootNode;
-    for (const FString& Part : PathParts)
-    {
-        bool bFound = false;
-        for (const FConfigNode& Child : CurrentNode->Children)
-        {
-            if (Child.Name == Part)
-            {
-                CurrentNode = &Child;
-                bFound = true;
-                break;
-            }
-        }
-
-        if (!bFound)
-        {
-            OutNodeType = static_cast<int32>(ENodeType::NT_String);
-            OutNodeValue = TEXT("");
-            return false; // 节点未找到
-        }
-    }
-
-    OutNodeType = static_cast<int32>(CurrentNode->NodeType);
-    OutNodeValue = CurrentNode->Value;
-    return true; // 节点找到
 }
 
 UGlobalConfigures::UGlobalConfigures()
     : bInitialized(false)
 {
-
+    Initialize();
 }
 
 UGlobalConfigures::~UGlobalConfigures()
@@ -138,44 +40,157 @@ UGlobalConfigures::~UGlobalConfigures()
 
 }
 
-void UGlobalConfigures::ParsingConfigurationFile(const FString& FileContent, const FString& Filename)
+void UGlobalConfigures::LoadConfigurationFile(const FString& FilePath)
 {
-    const FString& FileExt = FPaths::GetExtension(Filename);
+    const FString& Filename = FPaths::GetBaseFilename(FilePath);
 
-    FConfigNode Node;
+    UConfigNode* RootNode = ParseFileContent(FilePath);
+    ConfigMappings.Add(Filename, RootNode);
 
-    if (FileExt == "ini")
-    {
-        ConfigParser::ParseIni(FileContent, Node);
-    }
-    else if (FileExt == "json")
-    {
-        ConfigParser::ParseJson(FileContent, Node);
-    }
-    else if (FileExt == "yaml")
-    {
-        ConfigParser::ParseYaml(FileContent, Node);
-    }
-    else if (FileExt == "yml")
-    {
-        ConfigParser::ParseYaml(FileContent, Node);
-    }
-
-    Node.Name = Filename;
-    Node.NodeType = ENodeType::NT_Object;
-    RootNode.Children.AddUnique(Node);
-
-
-	UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("Parsed content of %s:\n"), *Filename);
-	ConfigParser::FNodeCallback Callback;
-	Callback.BindLambda([](const FConfigNode& Node, int32 Depth)
-		{
-			FString Indent = TEXT("");
-			for (int32 i = 0; i < Depth; ++i)
-			{
-				Indent += TEXT("  ");
-			}
-			UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("%sName: %s, Type: %d, Value: %s"), *Indent, *Node.Name, static_cast<int32>(Node.NodeType), *Node.Value);
-		});
-	ConfigParser::TraverseConfigNode(Node, Callback);
+    PrintConfigNode(RootNode);
 }
+
+UConfigNode* UGlobalConfigures::ParseFileContent(const FString& FilePath)
+{
+    const FString& FileExt = FPaths::GetExtension(FilePath);
+    UConfigNode* RootNode = NewObject<UConfigNode>();
+    if (FileExt == "json")
+    {
+        ParseJsonFile(FilePath, RootNode);
+    }
+
+    return RootNode;
+}
+
+void UGlobalConfigures::ParseJsonFile(const FString& FilePath, UConfigNode* RootNode)
+{
+    // ȷ���ļ�����
+    if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FilePath))
+    {
+        UE_LOG(LogRuntimeGlobalConfigurePlugin, Error, TEXT("Can't Find (%s) File"), *FilePath);
+    }
+    else
+    {
+        FString FileContent;
+        TSharedPtr<FJsonObject> JsonObject;
+        if (FFileHelper::LoadFileToString(FileContent, *FilePath))
+        {
+            TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(FileContent);
+            if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
+            {
+                UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("JSON Object Parse Success: %s"), *FilePath);
+                ParseJsonObject(JsonObject, RootNode);
+            }
+            else
+            {
+                UE_LOG(LogRuntimeGlobalConfigurePlugin, Error, TEXT("JSON Object Parse Fail: %s"), *FilePath);
+            }
+        }
+        else
+        {
+            UE_LOG(LogRuntimeGlobalConfigurePlugin, Error, TEXT("JSON File Load Fail: %s"), *FilePath);
+        }
+    }
+}
+
+void UGlobalConfigures::ParseJsonObject(TSharedPtr<FJsonObject> JsonObject, UConfigNode* ParentNode)
+{
+    for (const auto& Pair : JsonObject->Values)
+    {
+        UConfigNode* ChildNode = NewObject<UConfigNode>();
+        ChildNode->Name = Pair.Key;
+
+        if (Pair.Value->Type == EJson::String)
+        {
+            ChildNode->Type = ENodeType::NT_String;
+            ChildNode->Value = Pair.Value->AsString();
+        }
+        else if (Pair.Value->Type == EJson::Number)
+        {
+            double Number = Pair.Value->AsNumber();
+            if (Number == static_cast<int32>(Number))
+            {
+                ChildNode->Type = ENodeType::NT_Int;
+                ChildNode->Value = FString::FromInt(static_cast<int32>(Number));
+            }
+            else
+            {
+                ChildNode->Type = ENodeType::NT_Float;
+                ChildNode->Value = FString::SanitizeFloat(static_cast<float>(Number));
+            }
+        }
+        else if (Pair.Value->Type == EJson::Boolean)
+        {
+            ChildNode->Type = ENodeType::NT_Bool;
+            ChildNode->Value = Pair.Value->AsBool() ? TEXT("true") : TEXT("false");
+        }
+        else if (Pair.Value->Type == EJson::Array)
+        {
+            ChildNode->Type = ENodeType::NT_Array;
+            const TArray<TSharedPtr<FJsonValue>>& Array = Pair.Value->AsArray();
+            for (const TSharedPtr<FJsonValue>& Item : Array)
+            {
+                UConfigNode* ArrayElementNode = NewObject<UConfigNode>();
+                if (Item->Type == EJson::String)
+                {
+                    ArrayElementNode->Type = ENodeType::NT_String;
+                    ArrayElementNode->Value = Item->AsString();
+                }
+                else if (Item->Type == EJson::Number)
+                {
+                    double Number = Item->AsNumber();
+                    if (Number == static_cast<int32>(Number))
+                    {
+                        ArrayElementNode->Type = ENodeType::NT_Int;
+                        ArrayElementNode->Value = FString::FromInt(static_cast<int32>(Number));
+                    }
+                    else
+                    {
+                        ArrayElementNode->Type = ENodeType::NT_Float;
+                        ArrayElementNode->Value = FString::SanitizeFloat(static_cast<float>(Number));
+                    }
+                }
+                else if (Item->Type == EJson::Boolean)
+                {
+                    ArrayElementNode->Type = ENodeType::NT_Bool;
+                    ArrayElementNode->Value = Item->AsBool() ? TEXT("true") : TEXT("false");
+                }
+                else if (Item->Type == EJson::Object)
+                {
+                    ArrayElementNode->Type = ENodeType::NT_Object;
+                    ParseJsonObject(Item->AsObject(), ArrayElementNode);
+                }
+                ChildNode->Children.Add(ArrayElementNode);
+            }
+        }
+        else if (Pair.Value->Type == EJson::Object)
+        {
+            ChildNode->Type = ENodeType::NT_Object;
+            ParseJsonObject(Pair.Value->AsObject(), ChildNode);
+        }
+
+        ParentNode->Children.Add(ChildNode);
+    }
+}
+
+void UGlobalConfigures::PrintConfigNode(const UConfigNode* Node, int32 IndentLevel /*= 0*/)
+{
+    if (!Node)
+    {
+        return;
+    }
+
+    // ���������ַ���
+    FString Indent = FString::ChrN(IndentLevel, TEXT(' '));
+
+    // ��ӡ�ڵ�����ƺ�ֵ
+    FString NodeInfo = FString::Printf(TEXT("%sName: %s, Type: %d, Value: %s"), *Indent, *Node->Name, static_cast<int32>(Node->Type), *Node->Value);
+    UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("%s"), *NodeInfo);
+
+    // �ݹ��ӡ�ӽڵ�
+    for (const UConfigNode* ChildNode : Node->Children)
+    {
+        PrintConfigNode(ChildNode, IndentLevel + 2);  // �����ӽڵ�
+    }
+}
+

@@ -3,68 +3,54 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConfigNode.generated.h"
 
+UENUM(BlueprintType)
 enum class ENodeType : uint8
 {
-    NT_String,
-    NT_Number,
-    NT_Boolean,
-    NT_Object,
-    NT_Array
+    // 基础类型
+    NT_String UMETA(DisplayName = "String"),
+    NT_Int UMETA(DisplayName = "Int"),
+    NT_Float UMETA(DisplayName = "Float"),
+    NT_Bool UMETA(DisplayName = "Bool"),
+    // 对象类型
+    NT_Array UMETA(DisplayName = "Array"),
+    NT_Object UMETA(DisplayName = "Object")
 };
 
 /**
  * 
  */
-struct FConfigNode
+UCLASS()
+class UConfigNode : public UObject
 {
+    GENERATED_BODY()
+
+public:
     // 节点名称
+    UPROPERTY(BlueprintReadWrite, Category="节点名")
     FString Name;
-
     // 节点类型
-    ENodeType NodeType;
-
-    // 节点值 (根据类型不同，可以是字符串、数字、布尔值等)
+    UPROPERTY(BlueprintReadWrite, Category="节点名")
+    ENodeType Type;
+    // 节点值 (基础类型值)
+    UPROPERTY(BlueprintReadWrite, Category="节点值")
     FString Value;
-
-    // 子节点
-    TArray<FConfigNode> Children;
+    // 子节点（对象类型值）
+    UPROPERTY(BlueprintReadWrite, Category="子节点")
+    TArray<UConfigNode*> Children;
 
     // 构造函数
-    FConfigNode()
-        : Name(TEXT("")), NodeType(ENodeType::NT_String), Value(TEXT("")) {}
+    UConfigNode()
+        : Name(TEXT("")) 
+        , Value(TEXT(""))
+        , Children(TArray<UConfigNode*>())
+    {}
 
     // 带参数的构造函数
-    FConfigNode(FString InName, ENodeType InNodeType, FString InValue)
-        : Name(InName), NodeType(InNodeType), Value(InValue) {}
-
-    // 拷贝构造函数
-    FConfigNode(const FConfigNode& Other)
-    {
-        Name = Other.Name;
-        NodeType = Other.NodeType;
-        Value = Other.Value;
-        Children = Other.Children;
-    }
-
-    // 赋值运算符
-    FConfigNode& operator=(const FConfigNode& Other)
-    {
-        if (this != &Other)
-        {
-            Name = Other.Name;
-            NodeType = Other.NodeType;
-            Value = Other.Value;
-            Children = Other.Children;
-        }
-        return *this;
-    }
-
-    bool operator==(const FConfigNode& Other) const
-    {
-        return Name == Other.Name &&
-            NodeType == Other.NodeType &&
-            Value == Other.Value &&
-            Children == Other.Children;
-    }
+    UConfigNode(FString InName, ENodeType InNodeType, FString InValue = TEXT(""), TArray<UConfigNode*> InChildren = TArray<UConfigNode*>())
+        : Name(InName)
+        , Value(InValue)
+        , Children(InChildren)
+    {}
 };

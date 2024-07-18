@@ -42,8 +42,6 @@ void FRuntimeGlobalConfigureModule::StartupModule()
         }
 
         //===============================================================================================//
-
-        UGlobalConfigures::Get().Initialize(PluginConfigs(ConfigDir, ConfigFiles, SupportedFileTypes));
     }
     else
     {
