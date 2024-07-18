@@ -64,7 +64,6 @@ UConfigNode* UGlobalConfigures::ParseFileContent(const FString& FilePath)
 
 void UGlobalConfigures::ParseJsonFile(const FString& FilePath, UConfigNode* RootNode)
 {
-    // ȷ���ļ�����
     if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FilePath))
     {
         UE_LOG(LogRuntimeGlobalConfigurePlugin, Error, TEXT("Can't Find (%s) File"), *FilePath);
@@ -180,17 +179,14 @@ void UGlobalConfigures::PrintConfigNode(const UConfigNode* Node, int32 IndentLev
         return;
     }
 
-    // ���������ַ���
     FString Indent = FString::ChrN(IndentLevel, TEXT(' '));
 
-    // ��ӡ�ڵ�����ƺ�ֵ
     FString NodeInfo = FString::Printf(TEXT("%sName: %s, Type: %d, Value: %s"), *Indent, *Node->Name, static_cast<int32>(Node->Type), *Node->Value);
     UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("%s"), *NodeInfo);
 
-    // �ݹ��ӡ�ӽڵ�
     for (const UConfigNode* ChildNode : Node->Children)
     {
-        PrintConfigNode(ChildNode, IndentLevel + 2);  // �����ӽڵ�
+        PrintConfigNode(ChildNode, IndentLevel + 2);
     }
 }
 
