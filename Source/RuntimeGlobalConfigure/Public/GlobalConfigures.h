@@ -26,6 +26,9 @@ public:
     UFUNCTION(BlueprintCallable, DisplayName="加载配置文件")
     void LoadConfigurationFile(const FString& FilePath);
 
+    UFUNCTION(BlueprintCallable, DisplayName="保存配置文件")
+    bool WriteConfigNodeToFile(const UConfigNode* RootNode, const FString& FilePath);
+
 private:
     static UGlobalConfigures* Instance;
 
@@ -40,9 +43,18 @@ private:
      */
     UConfigNode* ParseFileContent(const FString& FilePath);
 
+    /**
+     * 构造文件内容，返回构造的字符串
+     */
+    FString ConstructureFileContent(const UConfigNode* ConfigNode, const FString& FilePath);
+
     /** 解析JSON文件 */
-    void ParseJsonFile(const FString& FilePath, UConfigNode* RootNode);
+    void ParseJsonString(const FString& FilePath, UConfigNode* RootNode);
     void ParseJsonObject(TSharedPtr<FJsonObject> JsonObject, UConfigNode* ParentNode);
+
+    /** 构造JSON字符串 */
+    void ConstructureJsonObject(const UConfigNode* Node, TSharedPtr<FJsonObject>& JsonObject);
+    void ConstructureJsonString(const UConfigNode* Node, FString& JsonString);
 
 
     void PrintConfigNode(const UConfigNode* Node, int32 IndentLevel = 0);

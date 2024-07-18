@@ -8,6 +8,8 @@
 #include "ConfigParser.h"
 #include "Json.h"
 #include "JsonUtilities.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 
 
 UGlobalConfigures* UGlobalConfigures::Instance = nullptr;
@@ -42,12 +44,26 @@ UGlobalConfigures::~UGlobalConfigures()
 
 void UGlobalConfigures::LoadConfigurationFile(const FString& FilePath)
 {
-    const FString& Filename = FPaths::GetBaseFilename(FilePath);
-
     UConfigNode* RootNode = ParseFileContent(FilePath);
-    ConfigMappings.Add(Filename, RootNode);
+    ConfigMappings.Add(FilePath, RootNode);
 
     PrintConfigNode(RootNode);
+}
+
+bool UGlobalConfigures::WriteConfigNodeToFile(const UConfigNode* RootNode, const FString& FilePath)
+{
+    if (!RootNode)
+    {
+        return false;
+    }
+
+    // 获取文件内容
+    const FString& FileContent = ConstructureFileContent(RootNode, FilePath);
+
+    // 将内容字符串写入文件
+
+
+    return false;
 }
 
 UConfigNode* UGlobalConfigures::ParseFileContent(const FString& FilePath)
@@ -56,13 +72,25 @@ UConfigNode* UGlobalConfigures::ParseFileContent(const FString& FilePath)
     UConfigNode* RootNode = NewObject<UConfigNode>();
     if (FileExt == "json")
     {
-        ParseJsonFile(FilePath, RootNode);
+        ParseJsonString(FilePath, RootNode);
     }
 
     return RootNode;
 }
 
-void UGlobalConfigures::ParseJsonFile(const FString& FilePath, UConfigNode* RootNode)
+FString UGlobalConfigures::ConstructureFileContent(const UConfigNode* ConfigNode, const FString& FilePath)
+{
+    const FString& FileExt = FPaths::GetExtension(FilePath);
+    FString FileContent = "";
+    if (FileExt == "json")
+    {
+        ConstructureJsonString(ConfigNode, FileContent);
+    }
+
+    return FileContent;
+}
+
+void UGlobalConfigures::ParseJsonString(const FString& FilePath, UConfigNode* RootNode)
 {
     if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*FilePath))
     {
@@ -169,6 +197,100 @@ void UGlobalConfigures::ParseJsonObject(TSharedPtr<FJsonObject> JsonObject, UCon
         }
 
         ParentNode->Children.Add(ChildNode);
+    }
+}
+
+void UGlobalConfigures::ConstructureJsonObject(const UConfigNode* Node, TSharedPtr<FJsonObject>& JsonObject)
+{
+    JsonObject = MakeShared<FJsonObject>();
+
+    for (const UConfigNode* ChildNode : Node->Children)
+    {
+        if (ChildNode->Type == ENodeType::NT_Object)
+        {
+            TSharedPtr<FJsonObject> ChildJsonObject;
+            ConstructureJsonObject(ChildNode, ChildJsonObject);
+            JsonObject->SetObjectField(ChildNode->Name, ChildJsonObject);
+        }
+        else if (ChildNode->Type == ENodeType::NT_Array)
+        {
+            TArray<TSharedPtr<FJsonValue>> JsonArray;
+            for (const UConfigNode* ArrayElementNode : ChildNode->Children)
+            {
+                if (ArrayElementNode->Type == ENodeType::NT_Object)
+                {
+                    TSharedPtr<FJsonObject> ElementJsonObject;
+                    ConstructureJsonObject(ArrayElementNode, ElementJsonObject);
+                    JsonArray.Add(MakeShared<FJsonValueObject>(ElementJsonObject));
+                }
+                else if (ArrayElementNode->Type == ENodeType::NT_Array)
+                {
+                    // 如果嵌套数组的话，可以递归处理
+                    TSharedPtr<FJsonObject> ElementJsonObject;
+                    ConstructureJsonObject(ArrayElementNode, ElementJsonObject);
+                    JsonArray.Add(MakeShared<FJsonValueObject>(ElementJsonObject));
+                }
+                else
+                {
+                    switch (ArrayElementNode->Type)
+                    {
+                    case ENodeType::NT_String:
+                        JsonArray.Add(MakeShared<FJsonValueString>(ArrayElementNode->Value));
+                        break;
+                    case ENodeType::NT_Int:
+                        JsonArray.Add(MakeShared<FJsonValueNumber>(FCString::Atoi(*ArrayElementNode->Value)));
+                        break;
+                    case ENodeType::NT_Float:
+                        JsonArray.Add(MakeShared<FJsonValueNumber>(FCString::Atof(*ArrayElementNode->Value)));
+                        break;
+                    case ENodeType::NT_Bool:
+                        JsonArray.Add(MakeShared<FJsonValueBoolean>(ArrayElementNode->Value.ToLower() == TEXT("true")));
+                        break;
+                    default:
+                        JsonArray.Add(MakeShared<FJsonValueNull>());
+                        break;
+                    }
+                }
+            }
+            JsonObject->SetArrayField(ChildNode->Name, JsonArray);
+        }
+        else
+        {
+            switch (ChildNode->Type)
+            {
+            case ENodeType::NT_String:
+                JsonObject->SetStringField(ChildNode->Name, ChildNode->Value);
+                break;
+            case ENodeType::NT_Int:
+                JsonObject->SetNumberField(ChildNode->Name, FCString::Atoi(*ChildNode->Value));
+                break;
+            case ENodeType::NT_Float:
+                JsonObject->SetNumberField(ChildNode->Name, FCString::Atof(*ChildNode->Value));
+                break;
+            case ENodeType::NT_Bool:
+                JsonObject->SetBoolField(ChildNode->Name, ChildNode->Value.ToLower() == TEXT("true"));
+                break;
+            default:
+                JsonObject->SetField(ChildNode->Name, MakeShared<FJsonValueNull>());
+                break;
+            }
+        }
+    }
+}
+
+void UGlobalConfigures::ConstructureJsonString(const UConfigNode* Node, FString& JsonString)
+{
+    TSharedPtr<FJsonObject> JsonObject;
+    // 构造Json值
+    ConstructureJsonObject(Node, JsonObject);
+    if (JsonObject.IsValid())
+    {
+        // 序列化为字符串
+        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
+        if (FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer))
+        {
+            Writer->Close();
+        }
     }
 }
 
