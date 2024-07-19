@@ -43,6 +43,7 @@ public:
     // 构造函数
     UConfigNode()
         : Name(TEXT("")) 
+        , Type(ENodeType::NT_Object)
         , Value(TEXT(""))
         , Children(TArray<UConfigNode*>())
     {}
@@ -50,6 +51,7 @@ public:
     // 带参数的构造函数
     UConfigNode(FString InName, ENodeType InNodeType, FString InValue = TEXT(""), TArray<UConfigNode*> InChildren = TArray<UConfigNode*>())
         : Name(InName)
+        , Type(InNodeType)
         , Value(InValue)
         , Children(InChildren)
     {}

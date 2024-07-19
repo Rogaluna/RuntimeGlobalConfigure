@@ -26,8 +26,11 @@ public:
     UFUNCTION(BlueprintCallable, DisplayName="加载配置文件")
     void LoadConfigurationFile(const FString& FilePath);
 
+    /**
+     * 传入的参数必须是已经注册过的文件
+     */
     UFUNCTION(BlueprintCallable, DisplayName="保存配置文件")
-    bool WriteConfigNodeToFile(const UConfigNode* RootNode, const FString& FilePath);
+    bool WriteConfigNodeToFile(const FString& FilePath);
 
 private:
     static UGlobalConfigures* Instance;

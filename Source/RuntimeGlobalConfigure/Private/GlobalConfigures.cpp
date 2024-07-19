@@ -50,8 +50,9 @@ void UGlobalConfigures::LoadConfigurationFile(const FString& FilePath)
     PrintConfigNode(RootNode);
 }
 
-bool UGlobalConfigures::WriteConfigNodeToFile(const UConfigNode* RootNode, const FString& FilePath)
+bool UGlobalConfigures::WriteConfigNodeToFile(const FString& FilePath)
 {
+    const UConfigNode* RootNode = ConfigMappings.FindRef(FilePath);
     if (!RootNode)
     {
         return false;
@@ -61,6 +62,25 @@ bool UGlobalConfigures::WriteConfigNodeToFile(const UConfigNode* RootNode, const
     const FString& FileContent = ConstructureFileContent(RootNode, FilePath);
 
     // 将内容字符串写入文件
+    // 获取平台文件系统
+    IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+    // 检查文件夹是否存在，如果不存在则创建
+    FString Directory = FPaths::GetPath(FilePath);
+    if (!PlatformFile.DirectoryExists(*Directory))
+    {
+        PlatformFile.CreateDirectoryTree(*Directory);
+    }
+
+    // 将字符串写入文件
+    if (FFileHelper::SaveStringToFile(FileContent, *FilePath))
+    {
+        UE_LOG(LogRuntimeGlobalConfigurePlugin, Log, TEXT("File Content Has Been Updated: %s"), *FilePath);
+    }
+    else
+    {
+        UE_LOG(LogRuntimeGlobalConfigurePlugin, Error, TEXT("Can't Update File Content: %s"), *FilePath);
+    }
 
 
     return false;
